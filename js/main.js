@@ -89,7 +89,7 @@ function updateW3w(e) {
   $.post('http://api.what3words.com/position', data, function(response) {
     console.log(response);
     $('#w3w').text('W3W\n' +
-                   'words: ' + response.words[0] + ', ' + response.words[1] + ', ' + response.words[2] + '\n' +
+                   'words: ' + response.words[0] + '.' + response.words[1] + '.' + response.words[2] + '\n' +
                    'position:' + response.position[0] + ', ' + response.position[1] );
   });
 }
