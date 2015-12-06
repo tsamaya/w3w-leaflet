@@ -3,6 +3,7 @@ L.Marker.prototype.animateDragging = function() {
   var iconMargin, shadowMargin;
 
   this.on('dragstart', function() {
+    dragging = true;
     if (!iconMargin) {
       iconMargin = parseInt(L.DomUtil.getStyle(this._icon, 'marginTop'));
       shadowMargin = parseInt(L.DomUtil.getStyle(this._shadow, 'marginLeft'));
@@ -13,6 +14,7 @@ L.Marker.prototype.animateDragging = function() {
   });
 
   return this.on('dragend', function() {
+    dragging = false;
     this._icon.style.marginTop = iconMargin + 'px';
     this._shadow.style.marginLeft = shadowMargin + 'px';
   });
@@ -27,11 +29,11 @@ L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
 var w3wmarker = L.marker([45.21433, 5.80749], {
     draggable: true
   })
-  .on('dragend', updateW3w)
+  .on('dragend', updateW3w2)
   .on('move', updateW3w)
   .animateDragging()
   .addTo(map);
-
+var dragging = false;
 var lang = 'fr';
 var key = 'Q4M51WJZ';
 
@@ -70,7 +72,14 @@ function getLangs() {
   });
 }
 
+function updateW3w2(e) {
+  dragging = false;
+  updateW3w(e);
+}
 function updateW3w(e) {
+  if( dragging ) {
+    return ;
+  }
   data = {
     'key': key,
     'lang': lang,
@@ -80,7 +89,7 @@ function updateW3w(e) {
   $.post('http://api.what3words.com/position', data, function(response) {
     console.log(response);
     $('#w3w').text('W3W\n' +
-                   'words: ' + response.words[0] + ', ' + response.words[1] + ', ' + response.words[2] + '\n' +
+                   'words: ' + response.words[0] + '.' + response.words[1] + '.' + response.words[2] + '\n' +
                    'position:' + response.position[0] + ', ' + response.position[1] );
   });
 }
