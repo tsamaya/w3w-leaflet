@@ -1,3 +1,18 @@
+// Get the user's w3w API key via prompt
+if (!localStorage.getItem('w3wkey')) {
+  localStorage.setItem(
+    'w3wkey',
+    prompt('What is your w3w API key?')
+  );
+}
+
+var endpoint = 'https://api.what3words.com/v2';
+var lang = 'fr';
+var key = localStorage.getItem('w3wkey');
+var defaultCoords = [45.21433, 5.80749];
+
+var dragging = false;
+
 L.Marker.prototype.animateDragging = function() {
 
   var iconMargin, shadowMargin;
@@ -20,22 +35,31 @@ L.Marker.prototype.animateDragging = function() {
   });
 };
 
-var map = L.map('map').setView([45.21433, 5.80749], 15);
+// what3words Marker
+var myIcon = L.icon({
+  iconUrl: './img/marker-border.png',
+  iconSize: [90, 90],
+  iconAnchor: [45, 90],
+  shadowUrl: './img/marker-shadow.png',
+  shadowSize: [68, 95],
+  shadowAnchor: [22, 94],
+  popupAnchor: [0, -75]
+});
 
-L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
+var map = L.map('map').setView(defaultCoords, 15);
+
+L.tileLayer('//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(map);
 
-var w3wmarker = L.marker([45.21433, 5.80749], {
+var w3wmarker = L.marker(defaultCoords, {
+    icon: myIcon,
     draggable: true
   })
   .on('dragend', updateW3w2)
   .on('move', updateW3w)
   .animateDragging()
   .addTo(map);
-var dragging = false;
-var lang = 'fr';
-var key = 'Q4M51WJZ';
 
 getLangs();
 
@@ -52,22 +76,23 @@ function onMapClick(evt) {
   var latlon = evt.latlng;
   var lat = latlon.lat;
   var lon = latlon.lng;
-  w3wmarker.setLatLng(L.latLng(lat,lon));
+  w3wmarker.setLatLng(L.latLng(lat, lon));
 }
 
 function getLangs() {
-  data = {
+  var data = {
     'key': key
   };
   var langs = $('#lang');
-  $.post('https://api.what3words.com/get-languages', data, function(response) {
+  $.get(endpoint + '/languages', data, function(response) {
     console.log(response);
     $.each(response.languages, function() {
-      if( this.code === 'fr') {
-        langs.append($('<option />').val(this.code).text(this.name_display).prop('selected', true));
+      /*jshint -W106 */
+      if (this.code === 'fr') {
+        langs.append($('<option />').val(this.code).text(this.native_name).prop('selected', true));
       } else {
-        langs.append($('<option />').val(this.code).text(this.name_display));
-      }
+        langs.append($('<option />').val(this.code).text(this.native_name));
+      }/*jshint +W106 */
     });
   });
 }
@@ -76,20 +101,25 @@ function updateW3w2(e) {
   dragging = false;
   updateW3w(e);
 }
+
 function updateW3w(e) {
-  if( dragging ) {
-    return ;
+  var position;
+  if (dragging) {
+    return;
   }
-  data = {
+  if (e === undefined || e.latlng === undefined) {
+    position = L.latLng(w3wmarker.getLatLng().lat, w3wmarker.getLatLng().lng).wrap();
+  } else {
+    position = L.latLng(e.latlng).wrap();
+  }
+  var data = {
     'key': key,
     'lang': lang,
-    'position': '\'' + w3wmarker.getLatLng().lat + ',' + w3wmarker.getLatLng().lng + '\''
+    'coords': position.lat + ',' + position.lng
   };
 
-  $.post('http://api.what3words.com/position', data, function(response) {
+  $.get(endpoint + '/reverse', data, function(response) {
     console.log(response);
-    $('#w3w').text('W3W\n' +
-                   'words: ' + response.words[0] + '.' + response.words[1] + '.' + response.words[2] + '\n' +
-                   'position:' + response.position[0] + ', ' + response.position[1] );
+    $('#w3w').text(response.words);
   });
 }
