@@ -72,7 +72,7 @@ var w3wgrid = L.geoJson(null, {
 
 map.addLayer(w3wgrid);
 
-function onMapZoomEnd(evt) {
+function onMapMoveEnd(evt) {
   w3wgrid.clearLayers();
   if( map.getZoom() >= 19) {
     var bounds = map.getBounds();
@@ -153,7 +153,7 @@ $(function() {
   update3wordaddress();
 
   map.on('click', onMapClick);
-  map.on('zoomend', onMapZoomEnd);
+  map.on('moveend', onMapMoveEnd);
 
   $('#lang').on('change', updateLang);
 });
