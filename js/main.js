@@ -53,8 +53,8 @@ var w3wmarker = L.marker(defaultCoords, {
     icon: myIcon,
     draggable: true
   })
-  .on('dragend', updateW3w2)
-  .on('move', updateW3w)
+  .on('dragend', updateOnDragEnd)
+  .on('move', update3wordaddress)
   .animateDragging()
   .addTo(map);
 
@@ -118,15 +118,15 @@ function getLangs() {
 
 function updateLang() {
   lang = $('#lang').val();
-  updateW3w();
+  update3wordaddress();
 }
 
-function updateW3w2(e) {
+function updateOnDragEnd(e) {
   dragging = false;
-  updateW3w(e);
+  update3wordaddress(e);
 }
 
-function updateW3w(e) {
+function update3wordaddress(e) {
   var position;
   if (dragging) {
     return;
@@ -150,7 +150,7 @@ function updateW3w(e) {
 
 $(function() {
   getLangs();
-  updateW3w();
+  update3wordaddress();
 
   map.on('click', onMapClick);
   map.on('zoomend', onMapZoomEnd);
