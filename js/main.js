@@ -1,33 +1,29 @@
 // Get the user's w3w API key via prompt
-if (!localStorage.getItem('w3wkey')) {
+if (!localStorage.getItem('w3wkey') || localStorage.getItem('w3wkey') === null) {
   localStorage.setItem(
     'w3wkey',
     prompt('What is your w3w API key?')
   );
 }
 
+var key = localStorage.getItem('w3wkey');
+
 var endpoint = 'https://api.what3words.com/v2';
 var lang = 'fr';
-var key = localStorage.getItem('w3wkey');
 var defaultCoords = [45.21433, 5.80749];
-
 var dragging = false;
 
 L.Marker.prototype.animateDragging = function() {
-
   var iconMargin, shadowMargin;
-
   this.on('dragstart', function() {
     dragging = true;
     if (!iconMargin) {
       iconMargin = parseInt(L.DomUtil.getStyle(this._icon, 'marginTop'));
       shadowMargin = parseInt(L.DomUtil.getStyle(this._shadow, 'marginLeft'));
     }
-
     this._icon.style.marginTop = (iconMargin - 15) + 'px';
     this._shadow.style.marginLeft = (shadowMargin + 8) + 'px';
   });
-
   return this.on('dragend', function() {
     dragging = false;
     this._icon.style.marginTop = iconMargin + 'px';
@@ -49,6 +45,7 @@ var myIcon = L.icon({
 var map = L.map('map').setView(defaultCoords, 15);
 
 L.tileLayer('//{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
   attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(map);
 
@@ -56,21 +53,41 @@ var w3wmarker = L.marker(defaultCoords, {
     icon: myIcon,
     draggable: true
   })
-  .on('dragend', updateW3w2)
-  .on('move', updateW3w)
+  .on('dragend', updateOnDragEnd)
+  .on('move', update3wordaddress)
   .animateDragging()
   .addTo(map);
 
-getLangs();
-
-updateW3w();
-
-$('#lang').on('change', function() {
-  lang = $('#lang').val();
-  updateW3w();
+var w3wgrid = L.geoJson(null, {
+  style: function() {
+    return {
+      weight: 1,
+      opacity: 0.5,
+      color: '#777',
+      fill: false,
+      clickable: false
+    };
+  }
 });
 
-map.on('click', onMapClick);
+map.addLayer(w3wgrid);
+
+function onMapMoveEnd(evt) {
+  w3wgrid.clearLayers();
+  if( map.getZoom() >= 19) {
+    var bounds = map.getBounds();
+    var ne = bounds.getNorthEast();
+    var sw = bounds.getSouthWest();
+    var data = {
+      'key': key,
+      'format': 'geojson',
+      'bbox': ne.lat + ',' + ne.lng + ',' + sw.lat + ',' + sw.lng
+    };
+    $.getJSON(endpoint + '/grid', data, function(response) {
+      w3wgrid.addData(response);
+    });
+  }
+}
 
 function onMapClick(evt) {
   var latlon = evt.latlng;
@@ -84,25 +101,32 @@ function getLangs() {
     'key': key
   };
   var langs = $('#lang');
-  $.get(endpoint + '/languages', data, function(response) {
+  jQuery.get(endpoint + '/languages', data, function(response) {
     console.log(response);
     $.each(response.languages, function() {
       /*jshint -W106 */
+      var display = this.native_name + ' (' + this.name + ')';
+      /*jshint +W106 */
       if (this.code === 'fr') {
-        langs.append($('<option />').val(this.code).text(this.native_name).prop('selected', true));
+        langs.append($('<option />').val(this.code).text(display).prop('selected', true));
       } else {
-        langs.append($('<option />').val(this.code).text(this.native_name));
-      }/*jshint +W106 */
+        langs.append($('<option />').val(this.code).text(display));
+      }
     });
   });
 }
 
-function updateW3w2(e) {
-  dragging = false;
-  updateW3w(e);
+function updateLang() {
+  lang = $('#lang').val();
+  update3wordaddress();
 }
 
-function updateW3w(e) {
+function updateOnDragEnd(e) {
+  dragging = false;
+  update3wordaddress(e);
+}
+
+function update3wordaddress(e) {
   var position;
   if (dragging) {
     return;
@@ -123,3 +147,13 @@ function updateW3w(e) {
     $('#w3w').text(response.words);
   });
 }
+
+$(function() {
+  getLangs();
+  update3wordaddress();
+
+  map.on('click', onMapClick);
+  map.on('moveend', onMapMoveEnd);
+
+  $('#lang').on('change', updateLang);
+});
